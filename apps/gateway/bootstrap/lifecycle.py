@@ -15,6 +15,8 @@ from apps.gateway.queue.task_queue import TaskQueue
 from apps.gateway.storage.bootstrap import StorageBootstrap
 from apps.gateway.telemetry.bootstrap import TelemetryBootstrap, TelemetryService
 from apps.gateway.health.service import HealthService
+from apps.gateway.services.connection_manager import ConnectionManager
+from apps.gateway.services.event_bridge import EventBridge
 
 
 class Lifecycle:
@@ -73,6 +75,25 @@ class Lifecycle:
         self.container.register_instance(StorageBootstrap, storage_bootstrap)
         self.logger.info("Startup step: Storage subsystem initialized and migrated.")
 
+        # 6b. Initialize Execution Framework
+        from apps.gateway.core.execution.repository import ExecutionRepository
+        from apps.gateway.core.execution.scheduler import ExecutionScheduler
+        from apps.gateway.core.execution.service import ExecutionService
+        from apps.gateway.core.execution.manager import ExecutionManager
+        
+        execution_repository = ExecutionRepository(storage_bootstrap)
+        self.container.register_instance(ExecutionRepository, execution_repository)
+        
+        execution_scheduler = ExecutionScheduler(execution_repository, event_bus)
+        self.container.register_instance(ExecutionScheduler, execution_scheduler)
+        
+        execution_service = ExecutionService(execution_repository, event_bus)
+        self.container.register_instance(ExecutionService, execution_service)
+        
+        execution_manager = ExecutionManager(execution_service, execution_scheduler)
+        self.container.register_instance(ExecutionManager, execution_manager)
+        self.logger.info("Startup step: Execution Framework initialized.")
+
         # 7. Initialize Telemetry
         telemetry_bootstrap = TelemetryBootstrap(
             config=self.config,
@@ -94,6 +115,28 @@ class Lifecycle:
         self.container.register_instance(HealthService, health_service)
         self.logger.info("Startup step: Health monitoring services registered.")
 
+        # 8b. Initialize Connection Manager & Event Bridge
+        server_config = self.config.get("server", {})
+        idle_timeout = server_config.get("idleTimeoutSeconds", 60.0)
+        cleanup_interval = server_config.get("cleanupIntervalSeconds", 10.0)
+        
+        connection_manager = ConnectionManager(
+            idle_timeout_seconds=idle_timeout,
+            cleanup_interval_seconds=cleanup_interval,
+            logger=self.logger
+        )
+        await connection_manager.start()
+        self.container.register_instance(ConnectionManager, connection_manager)
+        
+        event_bridge = EventBridge(
+            event_bus=event_bus,
+            connection_manager=connection_manager,
+            logger=self.logger
+        )
+        event_bridge.start()
+        self.container.register_instance(EventBridge, event_bridge)
+        self.logger.info("Startup step: WebSocket ConnectionManager and EventBridge initialized.")
+
         # 9. Gateway Ready
         self._is_ready = True
         self.logger.info("Startup complete. AI Workspace Gateway is READY to process workloads.")
@@ -102,6 +145,22 @@ class Lifecycle:
         """Executes the graceful shutdown sequence in sequence."""
         self.logger.info("Shutdown step: Initiating graceful teardown.")
         self._is_ready = False
+
+        # 0a. Stop Event Bridge
+        try:
+            event_bridge = self.container.resolve(EventBridge)
+            event_bridge.stop()
+            self.logger.info("Shutdown step: Event Bridge stopped.")
+        except Exception as e:
+            self.logger.error(f"Error stopping Event Bridge: {e}")
+
+        # 0b. Stop Connection Manager
+        try:
+            connection_manager = self.container.resolve(ConnectionManager)
+            await connection_manager.stop()
+            self.logger.info("Shutdown step: Connection Manager stopped.")
+        except Exception as e:
+            self.logger.error(f"Error stopping Connection Manager: {e}")
 
         # 1. Drain Task Queue
         try:

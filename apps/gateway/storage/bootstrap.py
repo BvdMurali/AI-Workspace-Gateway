@@ -97,6 +97,52 @@ MIGRATIONS: Dict[int, List[str]] = {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         """
+    ],
+    2: [
+        """
+        CREATE TABLE IF NOT EXISTS executions (
+            id VARCHAR(36) PRIMARY KEY,
+            correlation_id VARCHAR(36) NOT NULL,
+            workspace_id VARCHAR(36),
+            provider_id VARCHAR(100),
+            tool_id VARCHAR(100),
+            state VARCHAR(50) NOT NULL,
+            priority INTEGER NOT NULL DEFAULT 0,
+            timeout REAL NOT NULL,
+            owner VARCHAR(255),
+            environment_variables_json TEXT NOT NULL,
+            retry_policy_json TEXT NOT NULL,
+            tags_json TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            scheduled_at DATETIME,
+            completed_at DATETIME
+        );
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_executions_state ON executions(state);",
+        "CREATE INDEX IF NOT EXISTS idx_executions_priority ON executions(priority);",
+        "CREATE INDEX IF NOT EXISTS idx_executions_correlation ON executions(correlation_id);",
+        """
+        CREATE TABLE IF NOT EXISTS execution_metadata (
+            execution_id VARCHAR(36) NOT NULL,
+            key VARCHAR(255) NOT NULL,
+            value TEXT,
+            PRIMARY KEY (execution_id, key),
+            FOREIGN KEY (execution_id) REFERENCES executions(id) ON DELETE CASCADE
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS execution_events (
+            id VARCHAR(36) PRIMARY KEY,
+            execution_id VARCHAR(36) NOT NULL,
+            event_type VARCHAR(100) NOT NULL,
+            payload_json TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (execution_id) REFERENCES executions(id) ON DELETE CASCADE
+        );
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_execution_events_execution_id ON execution_events(execution_id);",
+        "CREATE INDEX IF NOT EXISTS idx_execution_events_timestamp ON execution_events(timestamp);"
     ]
 }
 
@@ -202,7 +248,11 @@ class StorageBootstrap:
                     self.logger.error(f"Failed to create migration backup for v{version}: {e}")
                 finally:
                     # Reconnect to run the migration
-                    self.connection = sqlite3.connect(str(self.db_file))
+                    self.connection = sqlite3.connect(
+                        str(self.db_file),
+                        detect_types=sqlite3.PARSE_DECLTYPES
+                    )
+                    self.connection.row_factory = sqlite3.Row
                     self.connection.execute("PRAGMA foreign_keys = ON;")
             
             # 2. Run migration SQL commands inside a transaction

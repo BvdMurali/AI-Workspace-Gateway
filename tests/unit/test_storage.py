@@ -34,11 +34,14 @@ def test_storage_initialization(tmp_path: Path) -> None:
     assert "vector_indexes" in tables
     assert "task_logs" in tables
     assert "schema_migrations" in tables
+    assert "executions" in tables
+    assert "execution_metadata" in tables
+    assert "execution_events" in tables
     
-    # Verify migration v1 was applied
+    # Verify migration v2 was applied
     cursor.execute("SELECT MAX(version) FROM schema_migrations;")
     max_ver = cursor.fetchone()[0]
-    assert max_ver == 1
+    assert max_ver == 2
     
     conn.close()
     bootstrap.close()
@@ -59,35 +62,36 @@ def test_storage_migration_failure_rollback(tmp_path: Path, monkeypatch: pytest.
     data_dir = tmp_path / "data"
     bootstrap = StorageBootstrap(data_dir=str(data_dir))
     
-    # 1. Initialize v1 successfully
+    # 1. Initialize v2 successfully
     bootstrap.initialize()
     bootstrap.close()
     
-    # 2. Inject failing migration v2
+    # 2. Inject failing migration v3
     original_migrations = storage_module.MIGRATIONS
     monkeypatch.setattr(storage_module, "MIGRATIONS", {
         1: original_migrations[1],
-        2: [
+        2: original_migrations[2],
+        3: [
             "CREATE TABLE temp_test_table (id TEXT);",
             "SELECT * FROM non_existent_table_forced_error;"  # This SQL throws syntax/no table error
         ]
     })
     
-    # 3. Attempt initialization which should fail and restore v1
+    # 3. Attempt initialization which should fail and restore v2
     bootstrap_retry = StorageBootstrap(data_dir=str(data_dir))
     with pytest.raises(StorageError):
         bootstrap_retry.initialize()
         
-    # Check that backup file for v2 exists
-    backup_file = data_dir / "db_backup_v2.db"
+    # Check that backup file for v3 exists
+    backup_file = data_dir / "db_backup_v3.db"
     assert backup_file.exists()
     
-    # Verify database was restored and version is still 1
+    # Verify database was restored and version is still 2
     conn = sqlite3.connect(str(data_dir / "gateway.db"))
     cursor = conn.cursor()
     cursor.execute("SELECT MAX(version) FROM schema_migrations;")
     ver = cursor.fetchone()[0]
-    assert ver == 1
+    assert ver == 2
     
     # Check that temp_test_table does not exist in tables list
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
