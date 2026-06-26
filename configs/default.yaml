@@ -1,0 +1,44 @@
+# ======================================================================
+# AI Workspace Gateway - Default Configuration
+# ======================================================================
+# How Configuration Loading Works:
+# 1. On startup, the Gateway Core initializes the Configuration Engine.
+# 2. The engine loads 'configs/default.yaml' as the base configuration.
+# 3. If the environment variable 'GATEWAY_ENV' is set (e.g., 'development' or 'production'),
+#    the engine loads the corresponding override file ('configs/{GATEWAY_ENV}.yaml').
+# 4. Any properties defined in the override file will replace or merge with the defaults.
+# 5. Environment variables prefixed with 'GATEWAY__' override config keys.
+#    Example: 'GATEWAY__SERVER__PORT=9000' overrides 'server.port'.
+# 6. Finally, workspace-specific configurations are hydrated from the SQLite database
+#    and applied dynamically on a per-session context.
+# ======================================================================
+
+server:
+  host: "127.0.0.1"
+  port: 8080
+  corsOrigins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+  timeoutMs: 30000
+
+storage:
+  dataDir: "~/.gateway/data"
+  encryptionEnabled: true
+  backupEnabled: true
+  backupIntervalSeconds: 86400
+
+providers:
+  active:
+    - "ollama"
+  ollama:
+    endpoint: "http://localhost:11434"
+    defaultModel: "llama3"
+
+logging:
+  level: "info"
+  format: "json"
+  destination: "stdout"
+
+telemetry:
+  enabled: false
+  endpoint: "https://telemetry.ai-workspace-gateway.org/v1/metrics"

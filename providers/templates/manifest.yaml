@@ -1,0 +1,21 @@
+# ======================================================================
+# AI Workspace Gateway - Provider Integration Manifest Template
+# ======================================================================
+name: "template-provider"
+id: "org.ai-workspace-gateway.providers.template"
+version: "1.0.0"
+author: "AI Workspace Gateway Core Team"
+description: "Standard interface template for adding model endpoints."
+
+config:
+  properties:
+    endpoint:
+      type: "string"
+      format: "uri"
+      default: "https://api.template.com/v1"
+    apiKey:
+      type: "string"
+      secret: true
+  required:
+    - "endpoint"
+    - "apiKey"

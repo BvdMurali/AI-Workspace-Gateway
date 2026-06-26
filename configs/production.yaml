@@ -1,0 +1,19 @@
+# AI Workspace Gateway - Production Overrides
+# Inherits from default.yaml. Applied when GATEWAY_ENV=production.
+
+server:
+  host: "127.0.0.1" # Retain localhost to ensure client-only routing
+  port: 8080
+  corsOrigins:
+    - "https://app.ai-workspace-gateway.org" # Restrict to official build URL
+
+storage:
+  dataDir: "~/.gateway/data"
+  encryptionEnabled: true
+
+logging:
+  level: "warn"
+  format: "json"
+
+telemetry:
+  enabled: false # Respect local-first private default rules

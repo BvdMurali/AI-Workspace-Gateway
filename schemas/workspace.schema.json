@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkspaceSchema",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "config": {
+      "type": "object",
+      "properties": {
+        "providers": {
+          "type": "object",
+          "properties": {
+            "active": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["active"]
+        }
+      },
+      "required": ["providers"]
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "name", "config", "createdAt", "updatedAt"]
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProviderSchema",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "displayName": { "type": "string" },
+    "endpoint": { "type": "string", "format": "uri" },
+    "apiKeyRequired": { "type": "boolean" },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "displayName": { "type": "string" },
+          "contextWindow": { "type": "integer", "minimum": 1 },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "boolean" },
+              "vision": { "type": "boolean" },
+              "toolCalling": { "type": "boolean" },
+              "embeddings": { "type": "boolean" }
+            },
+            "required": ["text", "vision", "toolCalling", "embeddings"]
+          }
+        },
+        "required": ["id", "displayName", "contextWindow", "capabilities"]
+      }
+    }
+  },
+  "required": ["name", "displayName", "endpoint", "apiKeyRequired", "models"]
+}

@@ -1,0 +1,19 @@
+# AI Workspace Gateway - Development Overrides
+# Inherits from default.yaml. Applied when GATEWAY_ENV=development.
+
+server:
+  host: "127.0.0.1"
+  port: 8080
+  corsOrigins:
+    - "*" # Allow all origins for local frontend testing
+
+storage:
+  dataDir: "./.gateway-dev/data"
+  encryptionEnabled: false # Disable local DB encryption for easy debugging
+
+logging:
+  level: "debug"
+  format: "pretty"
+
+telemetry:
+  enabled: false # Explicitly disable telemetry in development

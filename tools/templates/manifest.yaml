@@ -1,0 +1,20 @@
+# ======================================================================
+# AI Workspace Gateway - Tool Integration Manifest Template
+# ======================================================================
+name: "template-tool"
+id: "org.ai-workspace-gateway.tools.template"
+version: "1.0.0"
+author: "AI Workspace Gateway Core Team"
+description: "Standard action interface metadata for dynamic tools."
+
+permissions:
+  - "host:filesystem:read"
+
+parameters:
+  type: "object"
+  properties:
+    targetPath:
+      type: "string"
+      description: "Relative subfolder target path."
+  required:
+    - "targetPath"
