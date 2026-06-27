@@ -14,6 +14,10 @@ from fastapi.exceptions import RequestValidationError
 from apps.gateway.routers.health import router as legacy_health_router
 from apps.gateway.routers.v1.health import router as v1_health_router
 from apps.gateway.routers.v1.executions import router as v1_executions_router
+from apps.gateway.routers.v1.workspaces import router as v1_workspaces_router
+from apps.gateway.routers.v1.projects import router as v1_projects_router
+from apps.gateway.routers.v1.resources import router as v1_resources_router
+from apps.gateway.routers.v1.sessions import router as v1_sessions_router
 from apps.gateway.routers.websocket import router as ws_router
 
 from apps.gateway.middleware.request_id import RequestIdMiddleware
@@ -127,6 +131,10 @@ def create_app(lifecycle: Any) -> FastAPI:
     # Mount v1 routers
     v1_app.include_router(v1_health_router)
     v1_app.include_router(v1_executions_router, prefix="/executions", tags=["Executions"])
+    v1_app.include_router(v1_workspaces_router, prefix="/workspaces", tags=["Workspaces"])
+    v1_app.include_router(v1_projects_router, prefix="/projects", tags=["Projects"])
+    v1_app.include_router(v1_resources_router, prefix="/resources", tags=["Resources"])
+    v1_app.include_router(v1_sessions_router, prefix="/sessions", tags=["Sessions"])
     
     # Mount the v1 sub-app under /api/v1
     app.mount("/api/v1", v1_app)

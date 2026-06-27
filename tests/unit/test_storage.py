@@ -37,11 +37,13 @@ def test_storage_initialization(tmp_path: Path) -> None:
     assert "executions" in tables
     assert "execution_metadata" in tables
     assert "execution_events" in tables
+    assert "projects" in tables
+    assert "resources" in tables
     
-    # Verify migration v2 was applied
+    # Verify migration v3 was applied
     cursor.execute("SELECT MAX(version) FROM schema_migrations;")
     max_ver = cursor.fetchone()[0]
-    assert max_ver == 2
+    assert max_ver == 3
     
     conn.close()
     bootstrap.close()
@@ -62,36 +64,38 @@ def test_storage_migration_failure_rollback(tmp_path: Path, monkeypatch: pytest.
     data_dir = tmp_path / "data"
     bootstrap = StorageBootstrap(data_dir=str(data_dir))
     
-    # 1. Initialize v2 successfully
+    # 1. Initialize current migrations successfully
     bootstrap.initialize()
     bootstrap.close()
     
-    # 2. Inject failing migration v3
+    # Get current max version dynamically
     original_migrations = storage_module.MIGRATIONS
-    monkeypatch.setattr(storage_module, "MIGRATIONS", {
-        1: original_migrations[1],
-        2: original_migrations[2],
-        3: [
-            "CREATE TABLE temp_test_table (id TEXT);",
-            "SELECT * FROM non_existent_table_forced_error;"  # This SQL throws syntax/no table error
-        ]
-    })
+    max_ver = max(original_migrations.keys())
+    next_ver = max_ver + 1
     
-    # 3. Attempt initialization which should fail and restore v2
+    # 2. Inject failing migration
+    new_migrations = {k: v for k, v in original_migrations.items()}
+    new_migrations[next_ver] = [
+        "CREATE TABLE temp_test_table (id TEXT);",
+        "SELECT * FROM non_existent_table_forced_error;"  # This SQL throws syntax/no table error
+    ]
+    monkeypatch.setattr(storage_module, "MIGRATIONS", new_migrations)
+    
+    # 3. Attempt initialization which should fail and restore previous version
     bootstrap_retry = StorageBootstrap(data_dir=str(data_dir))
     with pytest.raises(StorageError):
         bootstrap_retry.initialize()
         
-    # Check that backup file for v3 exists
-    backup_file = data_dir / "db_backup_v3.db"
+    # Check that backup file exists
+    backup_file = data_dir / f"db_backup_v{next_ver}.db"
     assert backup_file.exists()
     
-    # Verify database was restored and version is still 2
+    # Verify database was restored and version is still max_ver
     conn = sqlite3.connect(str(data_dir / "gateway.db"))
     cursor = conn.cursor()
     cursor.execute("SELECT MAX(version) FROM schema_migrations;")
     ver = cursor.fetchone()[0]
-    assert ver == 2
+    assert ver == max_ver
     
     # Check that temp_test_table does not exist in tables list
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")

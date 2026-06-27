@@ -143,6 +143,49 @@ MIGRATIONS: Dict[int, List[str]] = {
         """,
         "CREATE INDEX IF NOT EXISTS idx_execution_events_execution_id ON execution_events(execution_id);",
         "CREATE INDEX IF NOT EXISTS idx_execution_events_timestamp ON execution_events(timestamp);"
+    ],
+    3: [
+        """
+        CREATE TABLE IF NOT EXISTS projects (
+            id VARCHAR(36) PRIMARY KEY,
+            workspace_id VARCHAR(36) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            root_path TEXT NOT NULL,
+            repository_metadata_json TEXT,
+            environment_variables_json TEXT,
+            tags_json TEXT,
+            provider_preference VARCHAR(100),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        );
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_projects_workspace ON projects(workspace_id);",
+        """
+        CREATE TABLE IF NOT EXISTS resources (
+            id VARCHAR(36) PRIMARY KEY,
+            workspace_id VARCHAR(36) NOT NULL,
+            project_id VARCHAR(36),
+            name VARCHAR(255) NOT NULL,
+            type VARCHAR(100) NOT NULL,
+            path TEXT,
+            parent_id VARCHAR(36),
+            metadata_json TEXT NOT NULL DEFAULT '{}',
+            tags_json TEXT DEFAULT '[]',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_resources_workspace ON resources(workspace_id);",
+        "CREATE INDEX IF NOT EXISTS idx_resources_project ON resources(project_id);",
+        "CREATE INDEX IF NOT EXISTS idx_resources_type ON resources(type);",
+        "ALTER TABLE sessions ADD COLUMN project_id VARCHAR(36) REFERENCES projects(id) ON DELETE SET NULL;",
+        "ALTER TABLE sessions ADD COLUMN connected_clients_json TEXT DEFAULT '[]';",
+        "ALTER TABLE sessions ADD COLUMN current_execution_id VARCHAR(36) REFERENCES executions(id) ON DELETE SET NULL;",
+        "ALTER TABLE sessions ADD COLUMN last_activity DATETIME;",
+        "ALTER TABLE sessions ADD COLUMN state VARCHAR(50) DEFAULT 'Active';"
     ]
 }
 
@@ -177,7 +220,8 @@ class StorageBootstrap:
             # Enable foreign keys support in SQLite
             self.connection = sqlite3.connect(
                 str(self.db_file),
-                detect_types=sqlite3.PARSE_DECLTYPES
+                detect_types=sqlite3.PARSE_DECLTYPES,
+                check_same_thread=False
             )
             self.connection.row_factory = sqlite3.Row
             self.connection.execute("PRAGMA foreign_keys = ON;")
@@ -250,7 +294,8 @@ class StorageBootstrap:
                     # Reconnect to run the migration
                     self.connection = sqlite3.connect(
                         str(self.db_file),
-                        detect_types=sqlite3.PARSE_DECLTYPES
+                        detect_types=sqlite3.PARSE_DECLTYPES,
+                        check_same_thread=False
                     )
                     self.connection.row_factory = sqlite3.Row
                     self.connection.execute("PRAGMA foreign_keys = ON;")

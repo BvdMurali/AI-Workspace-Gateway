@@ -94,6 +94,56 @@ class Lifecycle:
         self.container.register_instance(ExecutionManager, execution_manager)
         self.logger.info("Startup step: Execution Framework initialized.")
 
+        # 6c. Initialize Workspace, Project, Resource, and Session Domains
+        from apps.gateway.core.workspace import WorkspaceRepository, WorkspaceService, WorkspaceManager
+        from apps.gateway.core.project import ProjectRepository, ProjectService, ProjectManager, RepositoryDiscoveryService
+        from apps.gateway.core.resource import ResourceRepository, ResourceService, ResourceManager
+        from apps.gateway.core.session import SessionRepository, SessionService, SessionManager
+
+        # 1. Repositories
+        workspace_repository = WorkspaceRepository(storage_bootstrap)
+        self.container.register_instance(WorkspaceRepository, workspace_repository)
+
+        project_repository = ProjectRepository(storage_bootstrap)
+        self.container.register_instance(ProjectRepository, project_repository)
+
+        resource_repository = ResourceRepository(storage_bootstrap)
+        self.container.register_instance(ResourceRepository, resource_repository)
+
+        session_repository = SessionRepository(storage_bootstrap)
+        self.container.register_instance(SessionRepository, session_repository)
+
+        # 2. Services
+        workspace_service = WorkspaceService(workspace_repository, event_bus)
+        self.container.register_instance(WorkspaceService, workspace_service)
+
+        discovery_service = RepositoryDiscoveryService()
+        self.container.register_instance(RepositoryDiscoveryService, discovery_service)
+
+        project_service = ProjectService(project_repository, event_bus)
+        self.container.register_instance(ProjectService, project_service)
+
+        resource_service = ResourceService(resource_repository, event_bus)
+        self.container.register_instance(ResourceService, resource_service)
+
+        session_service = SessionService(session_repository, event_bus)
+        self.container.register_instance(SessionService, session_service)
+
+        # 3. Managers
+        resource_manager = ResourceManager(resource_service)
+        self.container.register_instance(ResourceManager, resource_manager)
+
+        workspace_manager = WorkspaceManager(workspace_service, resource_service)
+        self.container.register_instance(WorkspaceManager, workspace_manager)
+
+        project_manager = ProjectManager(project_service, discovery_service, resource_service)
+        self.container.register_instance(ProjectManager, project_manager)
+
+        session_manager = SessionManager(session_service)
+        self.container.register_instance(SessionManager, session_manager)
+
+        self.logger.info("Startup step: Workspace, Project, Resource, and Session domains initialized.")
+
         # 7. Initialize Telemetry
         telemetry_bootstrap = TelemetryBootstrap(
             config=self.config,
