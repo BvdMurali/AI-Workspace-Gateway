@@ -7,7 +7,7 @@
 An open-source, local-first, provider-agnostic AI workspace platform designed for security, performance, and flexibility across macOS, Windows, and Web environments.
 
 > [!NOTE]
-> AI Workspace Gateway runs fully locally, prioritizing user ownership of data, end-to-end encryption for remote sync, and direct-to-provider interactions without middleman servers.
+> This AI Workspace Gateway runs fully locally, prioritizing user ownership of data, end-to-end encryption for remote sync, and direct-to-provider interactions without middleman servers.
 
 ---
 
